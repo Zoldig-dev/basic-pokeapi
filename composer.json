@@ -1,0 +1,17 @@
+{
+    "name": "non-o/basic-pokeapi",
+    "type": "project",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "NonO\\BasicPokeapi\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Horler Raphael",
+            "email": "hraphaelh@gmail.com"
+        }
+    ],
+    "require": {}
+}
