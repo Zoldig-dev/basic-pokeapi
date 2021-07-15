@@ -13,5 +13,8 @@
             "email": "hraphaelh@gmail.com"
         }
     ],
-    "require": {}
+    "require": {
+      "ext-json": "*",
+        "symfony/http-client": "^5.3"
+    }
 }
