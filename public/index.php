@@ -6,6 +6,6 @@ $pokedex = new NonO\BasicPokeapi\Pokedex();
 header('Content-Type: application/json');
 
 try {
-    echo json_encode($pokedex->getPokemonsById(684)->toArray());
+    echo json_encode($pokedex->getAllPokemons());
 } catch (\Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface $e) {
 }

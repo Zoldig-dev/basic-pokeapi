@@ -16,43 +16,116 @@ class Pokedex
 {
     private HttpClientInterface $client;
 
-    /**
-     * Pokedex constructor.
-     */
+//    private array $pokemons;
+
     public function __construct()
     {
         $this->client = HttpClient::createForBaseUri('https://pokeapi.co/api/v2/');
+        $this->pokemons = [];
     }
 
     /**
+     * @return Pokemon|null
      * @throws TransportExceptionInterface
      */
-    public function getPokemonsById(int $id): ?Pokemon
+    public function getPokemonById(int $id): ?array
     {
-
-        $response = $this->client->request('GET', 'pokemon/'. $id);
+        $response = $this->client->request('GET', 'pokemon/' . $id);
 
         if (200 !== $response->getStatusCode()) {
             throw new \RuntimeException('Error from Pokeapi.co');
         }
 
         try {
-            $pokeInfo = $response->toArray();
-            return new Pokemon(
-                $pokeInfo['id'],
-                $pokeInfo['name'],
-                $pokeInfo['weight'],
-                $pokeInfo['base_experience'],
-                $pokeInfo['sprites']['front_default'],
+            $pokemonData = $response->toArray();
+            $artwork = $pokemonData['sprites']["other"]["dream_world"]["front_default"];
+            if (!$pokemonData['sprites']["other"]["dream_world"]["front_default"]) {
+                $artwork = $pokemonData['sprites']["other"]["official-artwork"]["front_default"];
+                if (!$pokemonData['sprites']["other"]["official-artwork"]["front_default"]) {
+                    $artwork = 'not available';
+                }
+            }
+            $sprite = $pokemonData["sprites"]["front_default"];
+            if ($sprite != true) {
+                $sprite = 'not available';
+            }
+            $pokemon = new Pokemon(
+                $pokemonData['id'],
+                $pokemonData['name'],
+                $pokemonData['weight'],
+                $pokemonData['base_experience'],
+                $sprite,
+                $artwork,
             );
-        } catch (ClientExceptionInterface |
-        TransportExceptionInterface |
+            return $pokemon->toArray();
+        } catch (
+        ClientExceptionInterface |
+        DecodingExceptionInterface |
         RedirectionExceptionInterface |
         ServerExceptionInterface |
-        DecodingExceptionInterface $e) {
+        TransportExceptionInterface $e
+        ) {
             echo $e->getMessage();
             return null;
         }
+    }
 
+    public function getAllPokemons(int $offset = 0, int $limit = 100): ?array
+    {
+        //Get response
+        try {
+            $response = $this->client->request('GET', 'pokemon/', [
+                'query' => [
+                    'offset' => $offset,
+                    'limit' => $limit,
+                ]
+            ]);
+        } catch (TransportExceptionInterface $e) {
+            echo $e->getMessage();
+        }
+
+
+        try {
+            if (!empty($response)) {
+                $data = $response->toArray();
+            }
+            $pokemons = [];
+            if (isset($data)) {
+
+                foreach ($data["results"] as $pokemon) {
+                    try {
+//                        $pokemonId = explode('/', $pokemon["url"]);
+//                        $pokemonId = intval($pokemonId[6]);
+                        if (!preg_match('/([0-9]+)\/?$/', $pokemon['url'], $matches)) {
+                            throw new \RuntimeException('Cannot match given url for pokemon ' . $pokemon['name']);
+                        }
+                        $pokemonId = intval($matches[0]);
+                        $pokemons[] = $this->getPokemonById($pokemonId);
+                    } catch (TransportExceptionInterface $e) {
+                        echo $e->getMessage();
+                    }
+                }
+            }
+
+            //Get next pokemons recursively if page exists
+            if (isset($data["next"])) {
+                if (!preg_match('/\?.*offset=([0-9]+)/', $data['next'], $matches)) {
+                    throw new \RuntimeException('Cannot match offset on next page.');
+                }
+
+                $nextOffset = $matches[1];
+
+                $nextPokemons = $this->getAllPokemons($nextOffset);
+
+                $pokemons = array_merge($pokemons, $nextPokemons);
+            }
+        } catch (ClientExceptionInterface | DecodingExceptionInterface | RedirectionExceptionInterface | ServerExceptionInterface | TransportExceptionInterface $e) {
+            echo $e->getMessage();
+        }
+
+        if (isset($pokemons)) {
+            return $pokemons;
+        }
+        return null;
     }
 }
